@@ -1,5 +1,6 @@
 import streamlit as st
 import openpyxl
+from openpyxl.utils import get_column_letter
 from io import BytesIO
 from datetime import datetime
 
@@ -12,19 +13,35 @@ if uploaded_file:
 
     sheetnames = wb.sheetnames
 
-    # 🗑️ 刪除第 3 個分頁（index=2）
+    # ✅ 針對第 1 分頁：根據 A 欄排序（index 0）
+    if len(sheetnames) >= 1:
+        ws1 = wb[sheetnames[0]]
+        rows = list(ws1.iter_rows(values_only=True))
+        header = rows[0]
+        data_rows = sorted(rows[1:], key=lambda x: (x[0] if x[0] is not None else ""))
+        ws1.delete_rows(1, ws1.max_row)
+        for i, row in enumerate([header] + data_rows, 1):
+            ws1.append(row)
+
+    # ✅ 第 2 分頁：刪除 A 欄，再依新 A 欄排序
+    if len(sheetnames) >= 2:
+        ws2 = wb[sheetnames[1]]
+        ws2.delete_cols(1)  # 刪除原 A 欄
+        rows = list(ws2.iter_rows(values_only=True))
+        header = rows[0]
+        data_rows = sorted(rows[1:], key=lambda x: (x[0] if x[0] is not None else ""))
+        ws2.delete_rows(1, ws2.max_row)
+        for i, row in enumerate([header] + data_rows, 1):
+            ws2.append(row)
+
+    # 🗑️ 刪除第 3 分頁（index=2）
     if len(sheetnames) >= 3:
         del wb[sheetnames[2]]
 
-    # 重新取得刪除後的 sheet 名稱
+    # 重新取得工作表名稱（因已刪除）
     sheetnames = wb.sheetnames
 
-    # 🆕 刪除第 2 分頁的第 1 欄（A欄）
-    if len(sheetnames) >= 2:
-        ws = wb[sheetnames[1]]
-        ws.delete_cols(1)
-
-    # ✅ 清空第 4 分頁（index=3）開始的內容
+    # ✅ 第 4 分頁開始（index 3）清空內容（保留排序和表頭）
     for sheet_name in sheetnames[3:]:
         ws = wb[sheet_name]
         for row in ws.iter_rows(min_row=2, max_row=ws.max_row,
@@ -33,7 +50,7 @@ if uploaded_file:
                 if cell.value not in (None, ""):
                     cell.value = ""
 
-    # ⏰ 取得月份（檔名 or 系統時間）
+    # 🕐 從檔名取月份
     month = datetime.now().month
     try:
         file_name = uploaded_file.name
@@ -41,17 +58,3 @@ if uploaded_file:
         month = dt.month
     except:
         pass
-
-    # 💾 儲存成下載檔
-    result_filename = f"{month}月做賬模板.xlsx"
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
-
-    st.success("✅ 處理完成，請下載：")
-    st.download_button(
-        label="📥 下載做賬模板",
-        data=output,
-        file_name=result_filename,
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
