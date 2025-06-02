@@ -40,11 +40,16 @@ if uploaded_file:
 
         if rows:
             header = rows[0]
+            keep_keywords = ("客戶編號", "客戶名稱")
+
+            # 模糊比對 + 去除空白
             keep_indices = []
             for idx, col_name in enumerate(header):
-                if col_name in ("客戶編號", "客戶名稱"):
+                clean_name = str(col_name).strip() if col_name else ""
+                if any(keyword in clean_name for keyword in keep_keywords):
                     keep_indices.append(idx)
 
+            # 重建資料，只保留指定欄位
             new_rows = [[row[i] if i < len(row) else "" for i in keep_indices] for row in rows]
 
             # 清空原內容
@@ -74,18 +79,11 @@ if uploaded_file:
     # ✅ 設定第一頁為啟動時顯示
     wb.active = 0
 
-    # ✅ 檔名使用「上個月」為名稱
+    # ✅ 固定用系統時間決定「上個月」作為檔名月份
     now = datetime.now()
     month = now.month - 1 if now.month > 1 else 12
 
-    try:
-        dt = datetime.strptime(uploaded_file.name[:10], "%Y-%m-%d")
-        parsed_month = dt.month - 1 if dt.month > 1 else 12
-        month = parsed_month
-    except:
-        pass
-
-    result_filename = f"{month}月做賬模板.xlsx"
+    result_filename = f"{month}月賬款pre.xlsx"
 
     # ✅ 儲存檔案到記憶體
     output = BytesIO()
