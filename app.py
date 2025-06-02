@@ -17,7 +17,6 @@ uploaded_file = st.file_uploader("請上傳 Excel 檔案（.xlsx）", type="xlsx
 
 if uploaded_file:
     wb = openpyxl.load_workbook(uploaded_file)
-
     sheetnames = wb.sheetnames
 
     # ✅ 第一分頁：根據 A 欄排序
@@ -34,24 +33,27 @@ if uploaded_file:
             for row in [header] + data_rows:
                 ws1.append(row)
 
-    # ✅ 第二分頁：刪除 A、D、E 欄 → 排序
+    # ✅ 第二分頁：保留「客戶編號」、「客戶名稱」兩欄，其餘刪除
     if len(sheetnames) >= 2:
         ws2 = wb[sheetnames[1]]
-
-        # 倒序刪除 E → D → A
-        ws2.delete_cols(5)  # E 欄
-        ws2.delete_cols(4)  # D 欄
-        ws2.delete_cols(1)  # A 欄（原 A）
-
-        # 排序
         rows = list(ws2.iter_rows(values_only=True))
+
         if rows:
             header = rows[0]
-            data_rows = sorted(
-                [r for r in rows[1:] if r and len(r) > 0],
-                key=safe_sort_key
-            )
+            keep_indices = []
+            for idx, col_name in enumerate(header):
+                if col_name in ("客戶編號", "客戶名稱"):
+                    keep_indices.append(idx)
+
+            new_rows = [[row[i] if i < len(row) else "" for i in keep_indices] for row in rows]
+
+            # 清空原內容
             ws2.delete_rows(1, ws2.max_row)
+
+            # 排序資料（跳過標題列）
+            header = new_rows[0]
+            data_rows = sorted(new_rows[1:], key=safe_sort_key)
+
             for row in [header] + data_rows:
                 ws2.append(row)
 
